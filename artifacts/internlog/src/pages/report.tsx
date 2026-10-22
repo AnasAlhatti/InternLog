@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
-import { ChevronLeft, ChevronRight, Copy, Download, RotateCcw, CalendarDays } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { summarizeWeek } from "@workspace/api-client-react";
+import WeeklyReportView from "@/components/weekly-report-view";
 import { useJournalContext } from "@/components/journal-context";
-import { filterEntries, formatDate, generateReport, localDate, shiftDate, weekBounds } from "@/lib/domain";
+import { filterEntries, generateReport, getStats, localDate, shiftDate, weekBounds, type WeeklySummary } from "@/lib/domain";
+import { includeSummary, summaryInput, summarySource } from "@/lib/weekly-summary";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ReportPage({ initialDate }: { initialDate?: string }) {
-  const { data } = useJournalContext();
+  const { data, saveWeeklySummary, conflict, recoveryRequired } = useJournalContext();
   const { toast } = useToast();
   const [anchor, setAnchor] = useState(initialDate ?? localDate());
   const { start, end } = weekBounds(anchor);
@@ -17,10 +17,65 @@ export default function ReportPage({ initialDate }: { initialDate?: string }) {
   useEffect(() => setText(generated), [generated]);
   const edited = text !== generated;
   const thisWeek = weekBounds(localDate()).start === start;
+  const source = useMemo(() => summarySource(data.entries, start), [data.entries, start]);
+  const [aiPending, setAiPending] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [localDraft, setLocalDraft] = useState<(WeeklySummary & { week: string }) | null>(null);
+  const sequence = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => {
+    sequence.current++;
+    controller.current?.abort();
+    controller.current = null;
+    setAiPending(false);
+    setAiError(null);
+    setLocalDraft(null);
+    return () => { sequence.current++; controller.current?.abort(); };
+  }, [start, source]);
+  const draft = localDraft?.week === start ? localDraft : data.weeklySummaries?.[start];
+  const summary = draft?.text ?? null;
+  const summaryStale = Boolean(draft && draft.source !== source);
+  const storageBlocked = conflict || recoveryRequired;
+  const sharedText = includeSummary(text, summaryStale ? null : summary);
+
+  const generateSummary = async () => {
+    if (aiPending || storageBlocked || !weekEntries.length) return;
+    const input = summaryInput(data.entries, start);
+    if (input.entries.length > 100 || new TextEncoder().encode(JSON.stringify(input)).byteLength > 40_000) {
+      setAiError("This week is too large for AI. Use at most 100 entries and shorten lengthy notes."); return;
+    }
+    const id = ++sequence.current;
+    const abort = new AbortController();
+    controller.current = abort;
+    setAiPending(true);
+    setAiError(null);
+    try {
+      const result = await summarizeWeek(input, { signal: abort.signal });
+      if (id !== sequence.current || abort.signal.aborted) return;
+      if (typeof result.summary !== "string" || !result.summary.trim() || result.summary.length > 6000) throw new Error("Invalid summary");
+      const next = { text: result.summary.trim(), source };
+      // Retain the result even if browser storage is full; never claim a failed
+      // write succeeded, and never replace the manually edited report text.
+      setLocalDraft({ ...next, week: start });
+      const saved = await saveWeeklySummary(start, next);
+      if (id === sequence.current && !saved) setAiError("The AI draft could not be saved. Copy or download it before leaving this page. Check the storage warning before retrying.");
+    } catch (cause) {
+      if (id !== sequence.current || abort.signal.aborted) return;
+      const limited = cause && typeof cause === "object" && "status" in cause && cause.status === 429;
+      setAiError(limited ? "The AI generation limit has been reached. Please try again later." : "AI could not generate a summary right now. Your report is unchanged. Please try again.");
+    } finally {
+      if (id === sequence.current) { setAiPending(false); controller.current = null; }
+    }
+  };
+  const removeSummary = async () => {
+    if (aiPending || storageBlocked) return;
+    if (await saveWeeklySummary(start, null)) { setLocalDraft(null); setAiError(null); }
+    else setAiError("Could not remove the saved summary. Your draft has been kept; check the storage warning.");
+  };
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(sharedText);
       toast({ title: "Report copied", description: "Paste it wherever your team does updates." });
     } catch {
       toast({ title: "Could not copy", description: "Your browser blocked clipboard access. Select the text and copy manually.", variant: "destructive" });
@@ -28,7 +83,7 @@ export default function ReportPage({ initialDate }: { initialDate?: string }) {
   };
 
   const download = () => {
-    const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+    const url = URL.createObjectURL(new Blob([sharedText], { type: "text/markdown" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = `internlog-week-${start}.md`;
@@ -37,55 +92,11 @@ export default function ReportPage({ initialDate }: { initialDate?: string }) {
     toast({ title: "Report downloaded", description: a.download });
   };
 
-  return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold md:text-4xl">Weekly report</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Built only from what you logged, Monday to Sunday. Nothing is added or embellished. Edit freely before sharing.
-        </p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-card-border bg-card p-2 shadow-sm">
-        <Button variant="ghost" size="icon" aria-label="Previous week" onClick={() => setAnchor(shiftDate(start, -7))} data-testid="button-prev-week"><ChevronLeft className="h-4 w-4" /></Button>
-        <p className="flex-1 text-center font-mono text-sm" data-testid="text-week-range">
-          {formatDate(start)} <span className="text-muted-foreground">to</span> {formatDate(end)}
-        </p>
-        <Button variant="ghost" size="icon" aria-label="Next week" onClick={() => setAnchor(shiftDate(start, 7))} data-testid="button-next-week"><ChevronRight className="h-4 w-4" /></Button>
-        {!thisWeek && <Button variant="outline" size="sm" onClick={() => setAnchor(localDate())} data-testid="button-this-week">This week</Button>}
-      </div>
-
-      {weekEntries.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-border bg-card/60 p-10 text-center" data-testid="empty-report">
-          <CalendarDays className="mx-auto h-7 w-7 text-primary" aria-hidden />
-          <h2 className="mt-3 text-xl font-semibold">Nothing logged this week</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">There is nothing to summarize, and we will not make anything up. Add an entry dated inside this week, or browse another week.</p>
-          <Link href="/entries?new=1" className="mt-5 inline-block rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground" data-testid="button-report-add">Add an entry</Link>
-        </div>
-      ) : (
-        <div className="rounded-3xl border border-card-border bg-card shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{weekEntries.length}</span> {weekEntries.length === 1 ? "entry" : "entries"} this week
-              {edited && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">Edited</span>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setText(generated)} disabled={!edited} data-testid="button-regenerate"><RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />Reset to entries</Button>
-              <Button variant="outline" size="sm" onClick={copy} data-testid="button-copy-report"><Copy className="mr-1.5 h-4 w-4" aria-hidden />Copy</Button>
-              <Button size="sm" onClick={download} data-testid="button-download-report"><Download className="mr-1.5 h-4 w-4" aria-hidden />Download .md</Button>
-            </div>
-          </div>
-          <label htmlFor="report-md" className="sr-only">Report markdown</label>
-          <textarea
-            id="report-md"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck
-            className="block min-h-[60vh] w-full resize-y rounded-b-3xl bg-transparent px-5 py-5 font-mono text-[13px] leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            data-testid="textarea-report"
-          />
-        </div>
-      )}
-    </div>
-  );
+  return <WeeklyReportView
+    start={start} end={end} thisWeek={thisWeek} entries={weekEntries} stats={getStats(weekEntries)} profile={data.profile}
+    text={text} edited={edited} summary={summary} summaryStale={summaryStale} aiPending={aiPending} aiError={aiError} storageBlocked={storageBlocked}
+    onPrevious={() => setAnchor(shiftDate(start, -7))} onNext={() => setAnchor(shiftDate(start, 7))} onThisWeek={() => setAnchor(localDate())}
+    onTextChange={setText} onReset={() => setText(generated)} onCopy={copy} onDownload={download}
+    onGenerateSummary={generateSummary} onRemoveSummary={removeSummary}
+  />;
 }

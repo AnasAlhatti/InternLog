@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto rounded-2xl border border-sidebar-border bg-card/80 p-4 text-xs leading-relaxed text-muted-foreground">
           <p className="flex items-center gap-1.5 font-semibold text-foreground"><HardDrive className="h-3.5 w-3.5 text-primary" aria-hidden />Stored in this browser</p>
-          <p className="mt-1">Journal entries stay in this browser. Export a backup from Settings now and then.</p>
+          <p className="mt-1">Saved in this browser. AI sharing is optional. Export a backup from Settings now and then.</p>
           {name && <p className="mt-3 border-t border-border pt-3 text-foreground/80" data-testid="text-sidebar-name">Logged in your own words, {name}.</p>}
         </div>
       </aside>

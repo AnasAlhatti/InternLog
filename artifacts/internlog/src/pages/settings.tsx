@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const [pending, setPending] = useState<Pending>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const hasData = recoveryRequired || data.entries.length > 0 || Boolean(error) || Object.values(data.profile).some(Boolean);
+  const hasData = recoveryRequired || data.entries.length > 0 || Object.keys(data.weeklySummaries ?? {}).length > 0 || Boolean(error) || Object.values(data.profile).some(Boolean);
 
   const submitProfile = async (e: FormEvent) => {
     e.preventDefault();
@@ -96,7 +96,7 @@ export default function SettingsPage() {
               InternLog has no account and no server. Entries are kept in this browser's local storage, so clearing site data,
               switching browsers, or using private mode can lose them. Export a backup every week or so.
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">Journal contents are not sent to a server. Google Fonts receives standard web request information when loading the app's fonts.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Your journal is saved in this browser. Only when you confirm an AI summary are the selected week's notes sent through our server to OpenAI via Replit AI Integrations. Your profile and other weeks are excluded, and our server does not store the notes. Google Fonts receives standard web request information when loading the app's fonts.</p>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">

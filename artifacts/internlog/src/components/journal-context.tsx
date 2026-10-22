@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { AppData, EntryInput, Profile } from "@/lib/domain";
+import type { AppData, EntryInput, Profile, WeeklySummary } from "@/lib/domain";
 import { useJournal } from "@/hooks/use-journal";
 
 export interface Journal {
@@ -11,6 +11,7 @@ export interface Journal {
   saveEntry(input: EntryInput, id?: string): boolean | Promise<boolean>;
   deleteEntry(id: string): boolean | Promise<boolean>;
   saveProfile(profile: Profile): boolean | Promise<boolean>;
+  saveWeeklySummary(week: string, summary: WeeklySummary | null): boolean | Promise<boolean>;
   replaceData(data: AppData): boolean | Promise<boolean>;
   clearData(): boolean | Promise<boolean>;
   loadSamples(): boolean | Promise<boolean>;

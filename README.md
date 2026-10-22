@@ -2,7 +2,8 @@
 
 A responsive, browser-local internship journal. Record daily work, learning,
 blockers, skills, and hours, then prepare an editable weekly report from those
-entries. No account, database, AI service, or paid integration is required.
+entries. No account or database is required. Reports work without AI; an optional
+AI summary uses Replit AI Integrations/OpenAI and is billed to Replit credits.
 
 ## Setup
 
@@ -15,7 +16,10 @@ PORT=5173 BASE_PATH=/ pnpm --filter @workspace/internlog dev
 
 In Replit, use the **InternLog** preview. Its managed workflow supplies the port
 and base path automatically. The app lives in `artifacts/internlog`.
-The starter API and shared libraries are not used to store journal data.
+The API server processes optional AI summaries but does not store journal data.
+Run its managed workflow too when using AI. Outside Replit, route `/api` to the
+API server and configure OpenAI through Replit's integration setup; never put
+its credentials in browser code.
 
 ```sh
 pnpm --filter @workspace/internlog test
@@ -28,7 +32,10 @@ PORT=5173 BASE_PATH=/ pnpm --filter @workspace/internlog build
 - Dashboard with entry, hours, skills, and open-blocker totals.
 - Create, view, edit, and delete dated entries; hours must be between 0 and 24.
 - Search titles, tasks, and learning notes; combine date, skill, and blocker filters.
-- Monday–Sunday reports with editable Markdown, clipboard copy, and file download.
+- Monday–Sunday reports with a readable document preview, editable Markdown,
+  weekly totals, clipboard copy, and file download.
+- Optional, consent-based AI summaries of the selected week's entries, saved
+  locally and included in JSON backups.
 - Profile settings, validated JSON backup import/export, and clear-data confirmation.
 - Five optional demo entries, including one open and one resolved blocker.
 - Keyboard-accessible controls and responsive desktop/mobile navigation.
@@ -51,7 +58,13 @@ deletion, changing browser/device, or moving to another domain can make entries
 unavailable. Export backups regularly and keep them somewhere safe. A published
 site has a different origin from a development preview; use export/import to move data.
 
-Reports are deterministic summaries of saved entries, not AI-generated writing.
+The detailed report is generated deterministically from saved entries. A separate
+AI draft can be generated only after confirming the disclosure. AI receives the
+selected week's entry details, not the profile, entry IDs, other weeks, or manual
+report edits. Always review it for accuracy. Generating a summary does not
+overwrite report edits. Saved AI drafts survive reloads and are included in
+backups; Clear all data removes them. If their source entries change, they are
+marked out of date and excluded from Copy/Download until regenerated.
 Edited report previews are temporary; download or copy them before leaving the
 page. Entries and profile settings persist. Calendar dates do not use UTC conversion.
 
@@ -72,9 +85,17 @@ A current browser with Web Locks support on HTTPS (or localhost) is required
 for saving; unsupported contexts display an error instead of falling back to
 unsafe writes.
 
-Journal contents are not sent to a server. Fonts load from Google Fonts, which
-receives standard web request information; browser-local journal storage does
-not mean the entire page makes no external network requests.
+Journal contents are not sent automatically. Confirmed AI requests pass through
+the API server to OpenAI via Replit AI Integrations; our server does not persist
+notes or log prompts/results. Fonts load from Google Fonts, which receives
+standard web request information. AI requires internet access and available
+credits; failures leave the journal and manual report unchanged.
+
+The public, account-free AI endpoint rejects cross-origin browser requests,
+limits inputs to 40 KB / 100 entries, bounds output length, cancels disconnected
+requests, and limits paid generations to 40/hour and two concurrent calls per
+server process. These process-local limits are abuse mitigations, not a durable
+account-level spending cap across server restarts or autoscaling.
 
 ## Development workflow
 

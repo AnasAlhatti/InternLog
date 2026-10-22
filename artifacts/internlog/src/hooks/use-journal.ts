@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { createSampleData, emptyData, parseBackup, validateEntry, type AppData, type EntryInput, type Profile } from '../lib/domain';
+import { createSampleData, emptyData, isDate, weekBounds, parseBackup, validateEntry, type AppData, type EntryInput, type Profile, type WeeklySummary } from '../lib/domain';
 import { loadData, saveData, STORAGE_KEY } from '../lib/storage';
+import { summarySource } from '../lib/weekly-summary';
 
 export function useJournal() {
   const [initial] = useState(loadData);
@@ -73,6 +74,16 @@ export function useJournal() {
     },
     deleteEntry(id: string) { return persist(latest => ({ ...latest, entries: latest.entries.filter(entry => entry.id !== id) })); },
     saveProfile(profile: Profile) { return persist(latest => ({ ...latest, profile })); },
+    saveWeeklySummary(week: string, summary: WeeklySummary | null) {
+      return persist(latest => {
+        if (!isDate(week) || weekBounds(week).start !== week) throw new Error('Choose a valid report week.');
+        if (summary && summary.source !== summarySource(latest.entries, week)) throw new Error('Entries changed while AI was working. Regenerate the summary from the latest week.');
+        const weeklySummaries = { ...latest.weeklySummaries };
+        if (summary) weeklySummaries[week] = summary;
+        else delete weeklySummaries[week];
+        return { ...latest, weeklySummaries };
+      });
+    },
     replaceData(next: AppData) { return persist(() => next, true); },
     clearData() { return persist(emptyData, true); },
     loadSamples() { return persist(latest => ({ ...createSampleData(), profile: latest.profile }), true); },

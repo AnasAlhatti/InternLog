@@ -12,7 +12,8 @@ export interface Entry {
 }
 export type EntryInput = Omit<Entry, 'id'>;
 export interface Profile { name: string; role: string; organization: string }
-export interface AppData { version: 1; entries: Entry[]; profile: Profile }
+export interface WeeklySummary { text: string; source: string }
+export interface AppData { version: 1; entries: Entry[]; profile: Profile; weeklySummaries?: Record<string, WeeklySummary> }
 export const emptyData = (): AppData => ({ version: 1, entries: [], profile: { name: '', role: '', organization: '' } });
 export function localDate(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -61,7 +62,17 @@ export function parseBackup(text: string): AppData {
     ids.add(entry.id);
     return { id: entry.id, date: entry.date, title: entry.title, tasks: entry.tasks, learning: entry.learning, blockers: entry.blockers, blockerStatus: entry.blockerStatus, nextSteps: entry.nextSteps, hours: entry.hours, skills: [...entry.skills] };
   });
-  return { version: 1, entries, profile: { name: data.profile.name, role: data.profile.role, organization: data.profile.organization } };
+  let weeklySummaries: Record<string, WeeklySummary> | undefined;
+  if (data.weeklySummaries !== undefined) {
+    if (!data.weeklySummaries || typeof data.weeklySummaries !== 'object' || Array.isArray(data.weeklySummaries)) return invalid();
+    weeklySummaries = Object.fromEntries(Object.entries(data.weeklySummaries).map(([week, summary]) => {
+      if (!isDate(week) || weekBounds(week).start !== week || !summary || typeof summary !== 'object' ||
+        typeof summary.text !== 'string' || !summary.text.trim() || summary.text.length > 6000 ||
+        typeof summary.source !== 'string' || summary.source.length > 90000) return invalid();
+      return [week, { text: summary.text, source: summary.source }];
+    }));
+  }
+  return { version: 1, entries, profile: { name: data.profile.name, role: data.profile.role, organization: data.profile.organization }, ...(weeklySummaries ? { weeklySummaries } : {}) };
 }
 export interface EntryFilters { search?: string; from?: string; to?: string; skill?: string; openOnly?: boolean }
 export function filterEntries(entries: Entry[], filters: EntryFilters): Entry[] {
@@ -106,8 +117,8 @@ export function generateReport(entries: Entry[], date: string, profile: Profile)
   lines.push(...(next.length ? next.map(entry => `- ${entry.nextSteps}`) : ['No next steps recorded.']));
   return lines.join('\n');
 }
-export function createSampleData(): AppData {
-  const start = weekBounds(localDate()).start;
+export function createSampleData(date = localDate()): AppData {
+  const start = weekBounds(date).start;
   const examples = [
     { title: 'A good start: onboarding', tasks: 'Set up the development environment, cloned the team repository, and joined the project walkthrough.', learning: 'Learned the branching workflow and how the team runs code reviews.', skills: ['Git', 'Teamwork'], hours: 6 },
     { title: 'Building my first component', tasks: 'Built a reusable status badge and added accessible labels to the entry form.', learning: 'Practiced React props and learned why labels matter for keyboard users.', skills: ['React', 'Accessibility'], hours: 7 },

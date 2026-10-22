@@ -2,8 +2,23 @@ import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { useJournal } from './use-journal';
 import { STORAGE_KEY } from '../lib/storage';
+import { summarySource } from '../lib/weekly-summary';
 
 const input = { date: '2026-10-19', title: 'Build', tasks: 'Added tests', learning: '', blockers: '', blockerStatus: 'open' as const, nextSteps: '', hours: 2, skills: ['Git'] };
+it('persists AI drafts in backups and rejects responses based on entries edited during generation', async () => {
+  const { result, unmount } = renderHook(() => useJournal());
+  await act(async () => { await result.current.saveEntry(input); });
+  const draft = { text: 'I built and tested a feature.', source: summarySource(result.current.data.entries, input.date) };
+  await act(async () => { expect(await result.current.saveWeeklySummary(input.date, draft)).toBe(true); });
+  unmount();
+  const reload = renderHook(() => useJournal());
+  expect(reload.result.current.data.weeklySummaries?.[input.date]).toEqual(draft);
+  const id = reload.result.current.data.entries[0].id;
+  await act(async () => { await reload.result.current.saveEntry({ ...input, tasks: 'New work' }, id); });
+  await act(async () => { expect(await reload.result.current.saveWeeklySummary(input.date, draft)).toBe(false); });
+  await act(async () => { await reload.result.current.clearData(); });
+  expect(reload.result.current.data.weeklySummaries).toBeUndefined();
+});
 it('creates, edits, deletes and reloads persisted entries', async () => {
   const { result, unmount } = renderHook(() => useJournal());
   await act(async () => { expect(await result.current.saveEntry(input)).toBe(true); });

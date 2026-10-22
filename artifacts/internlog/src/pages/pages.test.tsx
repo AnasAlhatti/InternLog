@@ -35,6 +35,7 @@ function makeJournal(data: AppData, over: Partial<Journal> = {}): Journal {
     saveEntry: vi.fn(() => true),
     deleteEntry: vi.fn(() => true),
     saveProfile: vi.fn(() => true),
+    saveWeeklySummary: vi.fn(() => true),
     replaceData: vi.fn(() => true),
     clearData: vi.fn(() => true),
     loadSamples: vi.fn(() => true),
@@ -197,6 +198,7 @@ describe("Report page", () => {
   });
   it("renders editable markdown and can regenerate", async () => {
     wrap(<ReportPage initialDate="2025-03-04" />, makeJournal(data), "/report");
+    await userEvent.click(screen.getByRole('button', { name: /edit report/i }));
     const ta = screen.getByLabelText(/report markdown/i) as HTMLTextAreaElement;
     const original = ta.value;
     expect(original).toContain("Newer day");

@@ -32,7 +32,7 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 
 ## Architecture decisions
 
-- InternLog is frontend-only and browser-local by explicit user request.
+- Journal storage is browser-local; the user explicitly added optional AI weekly summaries on 2026-10-22. Only the selected week's entry details are sent, after confirmation, via the API server to Replit AI Integrations/OpenAI. No journal database or accounts are used.
 - Dates represent local calendar days, not UTC timestamps.
 - Imported data must validate completely before replacement; failed writes must not update visible state.
 - Cross-tab saving deliberately requires Web Locks rather than an unsafe fallback: preventing silent data loss takes priority over support for older browsers.
@@ -45,7 +45,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 - Use a TDD workflow when executing: red, green, refactor.
 - Create a GitHub repository and commit gradually at stable milestones.
-- Keep v1 free of authentication, external app integrations, AI, and paid services.
+- Keep authentication and unrelated external app integrations out of scope. Optional AI weekly summaries are now explicitly requested; disclose credit usage and never send notes automatically.
 - GitHub is for source control only, not an in-app feature.
 
 ## Gotchas
