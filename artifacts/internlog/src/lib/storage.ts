@@ -1,12 +1,13 @@
 import { emptyData, parseBackup, type AppData } from './domain';
 
 export const STORAGE_KEY = 'internlog.data.v1';
-export function loadData(): { data: AppData; error: string | null } {
+export function loadData(): { data: AppData; error: string | null; raw: string | null } {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return { data: raw === null ? emptyData() : parseBackup(raw), error: null };
+    raw = localStorage.getItem(STORAGE_KEY);
+    return { data: raw === null ? emptyData() : parseBackup(raw), error: null, raw };
   } catch {
-    return { data: emptyData(), error: 'Could not read saved data. Your original browser data has not been overwritten. Restore a valid JSON backup in Settings, or explicitly replace/clear the data to start again.' };
+    return { data: emptyData(), raw, error: 'Could not read saved data. Your original browser data has not been overwritten. Restore a valid JSON backup in Settings, or explicitly replace/clear the data to start again.' };
   }
 }
 export function saveData(data: AppData): void {

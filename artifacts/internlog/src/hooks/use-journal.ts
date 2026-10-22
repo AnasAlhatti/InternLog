@@ -27,7 +27,7 @@ export function useJournal() {
     }
   }
   return {
-    data, error,
+    data, error, recoveryRequired: recoveryRequired.current, recoveryRaw: recoveryRequired.current ? initial.raw : null,
     saveEntry(input: EntryInput, id?: string) {
       const errors = validateEntry(input);
       if (Object.keys(errors).length) { setError(Object.values(errors)[0]); return false; }

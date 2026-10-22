@@ -10,13 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 type Pending = { kind: "samples" } | { kind: "clear" } | { kind: "import"; data: AppData } | null;
 
 export default function SettingsPage() {
-  const { data, error, saveProfile, replaceData, clearData, loadSamples } = useJournalContext();
+  const { data, error, recoveryRequired, recoveryRaw, saveProfile, replaceData, clearData, loadSamples } = useJournalContext();
   const { toast } = useToast();
   const [profile, setProfile] = useState(data.profile);
   const [pending, setPending] = useState<Pending>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const hasData = data.entries.length > 0 || Boolean(error) || Object.values(data.profile).some(Boolean);
+  const hasData = recoveryRequired || data.entries.length > 0 || Boolean(error) || Object.values(data.profile).some(Boolean);
 
   const submitProfile = (e: FormEvent) => {
     e.preventDefault();
@@ -29,13 +29,14 @@ export default function SettingsPage() {
   const doImport = (d: AppData) => { if (replaceData(d)) { setProfile(d.profile); toast({ title: "Backup restored", description: `${d.entries.length} entries imported.` }); } };
 
   const exportBackup = () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    if (recoveryRequired && recoveryRaw === null) return;
+    const url = URL.createObjectURL(new Blob([recoveryRequired ? recoveryRaw! : JSON.stringify(data, null, 2)], { type: recoveryRequired ? "text/plain" : "application/json" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `internlog-backup-${localDate()}.json`;
+    a.download = recoveryRequired ? `internlog-recovery-${localDate()}.txt` : `internlog-backup-${localDate()}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    toast({ title: "Backup exported", description: a.download });
+    toast({ title: recoveryRequired ? "Recovery file downloaded" : "Backup exported", description: recoveryRequired ? "Original damaged data saved for rescue. This is not a validated backup." : a.download });
   };
 
   const onFile = async (file: File | undefined) => {
@@ -98,11 +99,14 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button onClick={exportBackup} data-testid="button-export"><Download className="mr-1.5 h-4 w-4" aria-hidden />Export backup</Button>
+          {recoveryRequired
+            ? <Button onClick={exportBackup} disabled={recoveryRaw === null} data-testid="button-export-recovery"><Download className="mr-1.5 h-4 w-4" aria-hidden />Download recovery file</Button>
+            : <Button onClick={exportBackup} data-testid="button-export"><Download className="mr-1.5 h-4 w-4" aria-hidden />Export backup</Button>}
           <Button variant="outline" onClick={() => fileRef.current?.click()} data-testid="button-import"><Upload className="mr-1.5 h-4 w-4" aria-hidden />Import backup</Button>
           <label htmlFor="import-file" className="sr-only">Backup file</label>
           <input id="import-file" ref={fileRef} type="file" accept="application/json,.json" className="sr-only" tabIndex={-1} onChange={(e) => onFile(e.target.files?.[0])} data-testid="input-import-file" />
         </div>
+        {recoveryRequired && <p role="status" className="mt-3 text-sm text-destructive">Saved data needs recovery. Ordinary saves are blocked, even if you dismiss the warning. Download the original damaged data before replacing it. The recovery file is not a validated JSON backup.{recoveryRaw === null && " Browser storage could not be accessed, so a recovery download is unavailable."}</p>}
         {importError && <p role="alert" className="mt-3 rounded-lg bg-destructive/5 p-3 text-sm text-destructive" data-testid="text-import-error">Import failed: {importError}</p>}
       </section>
 

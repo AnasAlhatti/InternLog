@@ -5,6 +5,8 @@ import { useJournal } from "@/hooks/use-journal";
 export interface Journal {
   data: AppData;
   error: string | null;
+  recoveryRequired: boolean;
+  recoveryRaw: string | null;
   saveEntry(input: EntryInput, id?: string): boolean;
   deleteEntry(id: string): boolean;
   saveProfile(profile: Profile): boolean;

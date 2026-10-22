@@ -28,6 +28,7 @@ it('protects corrupt saved data until explicit replacement', () => {
   localStorage.setItem(STORAGE_KEY, '{broken');
   const { result } = renderHook(() => useJournal());
   act(() => { result.current.clearError(); });
+  expect(result.current.recoveryRequired).toBe(true);
   act(() => { expect(result.current.saveEntry(input)).toBe(false); });
   expect(localStorage.getItem(STORAGE_KEY)).toBe('{broken');
   act(() => { expect(result.current.clearData()).toBe(true); });

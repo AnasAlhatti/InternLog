@@ -29,6 +29,8 @@ function makeJournal(data: AppData, over: Partial<Journal> = {}): Journal {
   return {
     data,
     error: null,
+    recoveryRequired: false,
+    recoveryRaw: null,
     saveEntry: vi.fn(() => true),
     deleteEntry: vi.fn(() => true),
     saveProfile: vi.fn(() => true),
