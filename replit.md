@@ -10,6 +10,9 @@ A browser-local internship journal with daily work entries and weekly reports.
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/internlog test` — Vitest unit/component tests
+- `pnpm --filter @workspace/internlog test:e2e` — isolated Chromium recovery, native cross-tab locking, and browser-history regressions (builds and serves on port 4173)
+- Install the test browser outside Replit with `pnpm --filter @workspace/internlog exec playwright install --with-deps chromium`. CI does this automatically; Replit uses its supplied Chromium.
+- Browser tests never use an existing profile or storage state. Failure reports and traces are in `generated-artifacts/internlog/` (also uploaded by CI on failure).
 - `pnpm --filter @workspace/internlog typecheck` — app TypeScript check
 - InternLog uses its managed `artifacts/internlog: web` workflow.
 - No database or account is required for InternLog.
