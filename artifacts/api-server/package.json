@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "vitest run",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@workspace/integrations-openai-ai-server": "workspace:*",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
@@ -20,6 +22,7 @@
     "pino-http": "^10.5.0"
   },
   "devDependencies": {
+    "vitest": "^5.0.5",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
