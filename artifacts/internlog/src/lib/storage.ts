@@ -6,7 +6,7 @@ export function loadData(): { data: AppData; error: string | null } {
     const raw = localStorage.getItem(STORAGE_KEY);
     return { data: raw === null ? emptyData() : parseBackup(raw), error: null };
   } catch {
-    return { data: emptyData(), error: 'Could not read saved data. Your original browser data has not been overwritten. Export a recovery backup before replacing it, or restore a valid JSON backup in Settings.' };
+    return { data: emptyData(), error: 'Could not read saved data. Your original browser data has not been overwritten. Restore a valid JSON backup in Settings, or explicitly replace/clear the data to start again.' };
   }
 }
 export function saveData(data: AppData): void {

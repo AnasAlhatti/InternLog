@@ -116,6 +116,6 @@ export function createSampleData(): AppData {
     { title: 'Review, polish, and wrap-up', tasks: 'Applied code review feedback, checked the mobile layout, and prepared a short team update.', learning: 'Learned to make smaller pull requests and explain decisions in review notes.', skills: ['React', 'Communication'], hours: 5.5 },
   ];
   return { ...emptyData(), entries: examples.map((example, index) => ({
-    id: `sample-${index + 1}`, date: shiftDate(start, index), learning: '', blockers: '', blockerStatus: 'open', nextSteps: 'Discuss progress and the next task with my supervisor.', ...example,
+    id: `sample-${index + 1}`, date: shiftDate(start, index), blockers: '', blockerStatus: 'open', nextSteps: 'Discuss progress and the next task with my supervisor.', ...example,
   })) };
 }

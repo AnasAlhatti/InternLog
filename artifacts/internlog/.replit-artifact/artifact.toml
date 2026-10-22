@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "InternLog"
+description = "A private browser-local internship work journal with daily entries, skills and blockers, weekly Markdown reports, and validated JSON backups."
+version = "1.0.0"
+id = "artifacts/internlog"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18874
+
+[services.development]
+run = "pnpm --filter @workspace/internlog run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/internlog", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/internlog/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18874"
+BASE_PATH = "/"
