@@ -79,9 +79,9 @@ export default function EntriesPage() {
   const filtering = !!(search || from || to || skill || openOnly);
   const current = mode.kind === "view" || mode.kind === "edit" ? data.entries.find((e) => e.id === mode.id) : undefined;
 
-  const onSave = (input: EntryInput) => {
+  const onSave = async (input: EntryInput) => {
     const id = mode.kind === "edit" ? mode.id : undefined;
-    const ok = saveEntry(input, id);
+    const ok = await saveEntry(input, id);
     if (ok) {
       toast({ title: id ? "Entry updated" : "Entry saved", description: input.title });
       if (id) setMode({ kind: "view", id });
@@ -90,9 +90,9 @@ export default function EntriesPage() {
     return ok;
   };
 
-  const doDelete = () => {
+  const doDelete = async () => {
     if (!confirmId) return;
-    if (deleteEntry(confirmId)) {
+    if (await deleteEntry(confirmId)) {
       toast({ title: "Entry deleted" });
       setMode({ kind: "none" });
     }

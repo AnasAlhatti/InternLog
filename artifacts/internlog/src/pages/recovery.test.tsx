@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Router } from 'wouter';
@@ -31,11 +31,21 @@ it('exports the original damaged bytes as a clearly labeled rescue file, never a
   renderRecovery();
   expect(screen.queryByTestId('button-export')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /download recovery file/i }));
-  expect(click.mock.instances[0].download).toMatch(/recovery.*\.txt$/);
+  expect((click.mock.instances[0] as HTMLAnchorElement).download).toMatch(/recovery.*\.txt$/);
   const text = await new Promise<string>((resolve) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.readAsText(blobs[0]);
   });
   expect(text).toBe('{recoverable damaged JSON');
+});
+it('keeps a reload action visible after dismissing a cross-tab conflict warning', async () => {
+  renderRecovery();
+  act(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
+  });
+  await userEvent.click(screen.getByLabelText('Dismiss storage error'));
+  expect(screen.getByRole('button', { name: /reload latest journal/i })).toBeInTheDocument();
+  expect(screen.getByTestId('status-storage-conflict')).toHaveTextContent(/copy.*unsaved/i);
 });

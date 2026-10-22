@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   initial?: Entry;
-  onSubmit(input: EntryInput): boolean;
+  onSubmit(input: EntryInput): boolean | Promise<boolean>;
   onCancel(): void;
 }
 
@@ -41,6 +41,7 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
   const [skills, setSkills] = useState<string[]>(initial?.skills ?? []);
   const [skillDraft, setSkillDraft] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const addSkills = (list: string[], parts: string[]) => {
     const next = [...list];
@@ -70,8 +71,9 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
     }
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     const finalSkills = addSkills(skills, [skillDraft]);
     const h = hours.trim() === "" ? NaN : Number(hours);
     const input: EntryInput = {
@@ -94,7 +96,8 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
     if (Object.keys(errs).length) return;
     setSkills(finalSkills);
     setSkillDraft("");
-    onSubmit(input);
+    setSaving(true);
+    try { await onSubmit(input); } finally { setSaving(false); }
   };
 
   const inv = (k: string) => ({
@@ -173,8 +176,8 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
         </div>
       </div>
       <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="ghost" onClick={onCancel} data-testid="button-cancel-entry">Cancel</Button>
-        <Button type="submit" data-testid="button-save-entry">Save entry</Button>
+        <Button type="button" variant="ghost" disabled={saving} onClick={onCancel} data-testid="button-cancel-entry">Cancel</Button>
+        <Button type="submit" disabled={saving} data-testid="button-save-entry">{saving ? 'Saving…' : 'Save entry'}</Button>
       </div>
     </form>
   );

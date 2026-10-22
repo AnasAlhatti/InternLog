@@ -18,15 +18,15 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const hasData = recoveryRequired || data.entries.length > 0 || Boolean(error) || Object.values(data.profile).some(Boolean);
 
-  const submitProfile = (e: FormEvent) => {
+  const submitProfile = async (e: FormEvent) => {
     e.preventDefault();
     const clean = { name: profile.name.trim(), role: profile.role.trim(), organization: profile.organization.trim() };
-    if (saveProfile(clean)) toast({ title: "Profile saved" });
+    if (await saveProfile(clean)) toast({ title: "Profile saved" });
   };
 
-  const doSamples = () => { if (loadSamples()) { setProfile(data.profile); toast({ title: "Sample data loaded", description: "Explore freely. Clear it whenever you are ready." }); } };
-  const doClear = () => { if (clearData()) { setProfile({ name: "", role: "", organization: "" }); toast({ title: "All data cleared" }); } };
-  const doImport = (d: AppData) => { if (replaceData(d)) { setProfile(d.profile); toast({ title: "Backup restored", description: `${d.entries.length} entries imported.` }); } };
+  const doSamples = async () => { if (await loadSamples()) { setProfile(data.profile); toast({ title: "Sample data loaded", description: "Explore freely. Clear it whenever you are ready." }); } };
+  const doClear = async () => { if (await clearData()) { setProfile({ name: "", role: "", organization: "" }); toast({ title: "All data cleared" }); } };
+  const doImport = async (d: AppData) => { if (await replaceData(d)) { setProfile(d.profile); toast({ title: "Backup restored", description: `${d.entries.length} entries imported.` }); } };
 
   const exportBackup = () => {
     if (recoveryRequired && recoveryRaw === null) return;
@@ -52,11 +52,11 @@ export default function SettingsPage() {
     }
   };
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!pending) return;
-    if (pending.kind === "samples") doSamples();
-    if (pending.kind === "clear") doClear();
-    if (pending.kind === "import") doImport(pending.data);
+    if (pending.kind === "samples") await doSamples();
+    if (pending.kind === "clear") await doClear();
+    if (pending.kind === "import") await doImport(pending.data);
     setPending(null);
   };
 

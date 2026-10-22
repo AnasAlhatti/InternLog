@@ -28,7 +28,7 @@ export function Logo() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [loc] = useLocation();
-  const { data, error, clearError } = useJournalContext();
+  const { data, error, conflict, clearError } = useJournalContext();
   const name = data.profile.name.trim();
 
   return (
@@ -70,6 +70,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="flex-1 min-w-0">
+        {conflict && (
+          <div role="status" className="mx-4 mt-4 rounded-xl border border-destructive/30 bg-card p-4 text-sm md:mx-10" data-testid="status-storage-conflict">
+            <p>Another tab changed this journal. Copy any unsaved notes before reloading. Saves and replacements are blocked to protect the latest data.</p>
+            <button className="mt-2 rounded-md border border-border px-3 py-2 font-semibold" onClick={() => {
+              if (window.confirm("Reload the latest journal? Any unsaved notes on this page will be discarded. Copy them first.")) window.location.reload();
+            }}>Reload latest journal</button>
+          </div>
+        )}
         {error && (
           <div role="alert" className="mx-4 mt-4 md:mx-10 md:mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm" data-testid="status-storage-error">
             <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" aria-hidden />

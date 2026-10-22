@@ -7,12 +7,13 @@ export interface Journal {
   error: string | null;
   recoveryRequired: boolean;
   recoveryRaw: string | null;
-  saveEntry(input: EntryInput, id?: string): boolean;
-  deleteEntry(id: string): boolean;
-  saveProfile(profile: Profile): boolean;
-  replaceData(data: AppData): boolean;
-  clearData(): boolean;
-  loadSamples(): boolean;
+  conflict: boolean;
+  saveEntry(input: EntryInput, id?: string): boolean | Promise<boolean>;
+  deleteEntry(id: string): boolean | Promise<boolean>;
+  saveProfile(profile: Profile): boolean | Promise<boolean>;
+  replaceData(data: AppData): boolean | Promise<boolean>;
+  clearData(): boolean | Promise<boolean>;
+  loadSamples(): boolean | Promise<boolean>;
   clearError(): void;
 }
 
