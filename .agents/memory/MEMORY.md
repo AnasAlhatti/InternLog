@@ -1,0 +1,1 @@
+- [GitHub access after handoff](github-access.md) — authorization metadata can look healthy without usable project access; local commits are not a remote backup.
