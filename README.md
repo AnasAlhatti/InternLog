@@ -57,8 +57,24 @@ page. Entries and profile settings persist. Calendar dates do not use UTC conver
 
 Malformed browser data is not silently overwritten. The app displays a recovery
 message and prevents ordinary saves until data is explicitly restored or replaced.
+Recovery status remains active after dismissing a warning. Settings offers an
+exact copy of the damaged storage as a labeled `.txt` recovery file instead of
+pretending an empty journal is a valid backup. This recovery file is for manual
+rescue and cannot be imported until repaired into valid InternLog JSON.
 Quota/access failures leave visible state unchanged and display an error.
 Backups contain your work notes and profile, so treat them as private files.
+
+Same-origin tabs coordinate writes using the browser Web Locks API and compare
+the saved snapshot before each write. A stale tab cannot save, clear, import, or
+load samples over another tab's newer data. Its unsaved form stays visible: copy
+any draft first, then use **Reload latest journal** and confirm the reload.
+A current browser with Web Locks support on HTTPS (or localhost) is required
+for saving; unsupported contexts display an error instead of falling back to
+unsafe writes.
+
+Journal contents are not sent to a server. Fonts load from Google Fonts, which
+receives standard web request information; browser-local journal storage does
+not mean the entire page makes no external network requests.
 
 ## Development workflow
 

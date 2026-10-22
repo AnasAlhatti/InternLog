@@ -49,3 +49,8 @@ it('keeps a reload action visible after dismissing a cross-tab conflict warning'
   expect(screen.getByRole('button', { name: /reload latest journal/i })).toBeInTheDocument();
   expect(screen.getByTestId('status-storage-conflict')).toHaveTextContent(/copy.*unsaved/i);
 });
+it('describes browser-local journal privacy without hiding external font requests', () => {
+  render(<Router><JournalProvider><AppShell><SettingsPage /></AppShell></JournalProvider></Router>);
+  expect(screen.queryByText(/nothing leaves your device/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/Google Fonts receives standard web request information/i)).toBeInTheDocument();
+});

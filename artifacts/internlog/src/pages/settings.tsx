@@ -96,6 +96,7 @@ export default function SettingsPage() {
               InternLog has no account and no server. Entries are kept in this browser's local storage, so clearing site data,
               switching browsers, or using private mode can lose them. Export a backup every week or so.
             </p>
+            <p className="mt-2 text-sm text-muted-foreground">Journal contents are not sent to a server. Google Fonts receives standard web request information when loading the app's fonts.</p>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">

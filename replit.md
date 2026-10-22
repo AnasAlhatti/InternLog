@@ -32,6 +32,7 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 - InternLog is frontend-only and browser-local by explicit user request.
 - Dates represent local calendar days, not UTC timestamps.
 - Imported data must validate completely before replacement; failed writes must not update visible state.
+- Cross-tab saving deliberately requires Web Locks rather than an unsafe fallback: preventing silent data loss takes priority over support for older browsers.
 
 ## Product
 
