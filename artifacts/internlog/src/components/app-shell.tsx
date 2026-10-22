@@ -5,7 +5,7 @@ import { useJournalContext } from "@/components/journal-context";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Today", icon: LayoutDashboard, id: "dashboard" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { href: "/entries", label: "Entries", icon: BookOpen, id: "entries" },
   { href: "/report", label: "Weekly report", icon: FileText, id: "report" },
   { href: "/settings", label: "Settings", icon: Settings, id: "settings" },
