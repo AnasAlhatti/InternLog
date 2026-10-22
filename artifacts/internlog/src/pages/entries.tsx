@@ -9,6 +9,7 @@ import { EntryForm } from "@/components/entry-form";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { filterEntries, formatDate, type Entry, type EntryInput } from "@/lib/domain";
 import { useToast } from "@/hooks/use-toast";
+import { useDrafts } from "@/components/draft-context";
 
 type Mode = { kind: "none" } | { kind: "view"; id: string } | { kind: "new" } | { kind: "edit"; id: string };
 
@@ -59,6 +60,8 @@ function Detail({ entry, onEdit, onDelete, onBack }: { entry: Entry; onEdit(): v
 
 export default function EntriesPage() {
   const { data, saveEntry, deleteEntry } = useJournalContext();
+  const { drafts } = useDrafts();
+  const entryDrafts = drafts.filter(draft => draft.kind === "entry");
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const params = new URLSearchParams(useSearch());
@@ -87,7 +90,7 @@ export default function EntriesPage() {
   const current = mode.kind === "view" || mode.kind === "edit" ? data.entries.find((e) => e.id === mode.id) : undefined;
 
   const onSave = async (input: EntryInput) => {
-    const id = mode.kind === "edit" ? mode.id : undefined;
+    const id = mode.kind === "edit" && current ? mode.id : undefined;
     const ok = await saveEntry(input, id);
     if (ok) {
       toast({ title: id ? "Entry updated" : "Entry saved", description: input.title });
@@ -106,7 +109,8 @@ export default function EntriesPage() {
     setConfirmId(null);
   };
 
-  const panelOpen = mode.kind !== "none" && (mode.kind === "new" || !!current);
+  const missingDraft = mode.kind === "edit" && !current && entryDrafts.some(draft => draft.key === `entry:edit:${mode.id}`);
+  const panelOpen = mode.kind !== "none" && (mode.kind === "new" || !!current || missingDraft);
 
   return (
     <div className="space-y-6">
@@ -117,6 +121,17 @@ export default function EntriesPage() {
         </div>
         <Button onClick={() => setMode({ kind: "new" })} className="rounded-xl" data-testid="button-new-entry"><Plus className="mr-1.5 h-4 w-4" aria-hidden />New entry</Button>
       </header>
+
+      {entryDrafts.length > 0 && (
+        <section aria-label="Unfinished entry drafts" className="rounded-xl border border-border bg-card p-3 text-sm space-y-2">
+          <p className="font-semibold">Unfinished drafts in this tab</p>
+          {entryDrafts.map(draft => draft.kind === "entry" && (
+            <Button key={draft.key} variant="outline" size="sm" className="mr-2" onClick={() => setMode(draft.entryId ? { kind: "edit", id: draft.entryId } : { kind: "new" })}>
+              Resume: {draft.fields.title.trim() || "Untitled entry"}
+            </Button>
+          ))}
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className={panelOpen ? "hidden lg:block space-y-4" : "space-y-4"}>
@@ -164,13 +179,19 @@ export default function EntriesPage() {
             {mode.kind === "new" && (
               <>
                 <h2 className="mb-5 text-2xl font-semibold">New entry</h2>
-                <EntryForm onSubmit={onSave} onCancel={() => setMode({ kind: "none" })} />
+                <EntryForm key="new" onSubmit={onSave} onCancel={() => setMode({ kind: "none" })} />
+              </>
+            )}
+            {missingDraft && mode.kind === "edit" && (
+              <>
+                <h2 className="mb-5 text-2xl font-semibold">Recover removed entry draft</h2>
+                <EntryForm key={`edit:${mode.id}`} draftKey={`entry:edit:${mode.id}`} onSubmit={onSave} onCancel={() => setMode({ kind: "none" })} />
               </>
             )}
             {mode.kind === "edit" && current && (
               <>
                 <h2 className="mb-5 text-2xl font-semibold">Edit entry</h2>
-                <EntryForm key={current.id} initial={current} onSubmit={onSave} onCancel={() => setMode({ kind: "view", id: current.id })} />
+                <EntryForm key={`edit:${current.id}`} initial={current} onSubmit={onSave} onCancel={() => setMode({ kind: "view", id: current.id })} />
               </>
             )}
             {mode.kind === "view" && current && (

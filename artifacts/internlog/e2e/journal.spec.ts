@@ -131,6 +131,47 @@ test('native Web Locks serialize two same-context tabs without losing the stale 
   await expect(other.getByTestId('status-storage-error')).toContainText('Another tab changed');
   expect(await rawStorage(other)).toBe(winnerRaw);
   await expect(other.getByTestId('input-title')).toHaveValue('Second tab draft');
+  await other.reload();
+  await expect(other.getByTestId('status-storage-conflict')).toHaveCount(0);
+  await expect(other.getByTestId('input-title')).toHaveValue('Second tab draft');
+  await expect(other.getByTestId('input-tasks')).toHaveValue('Second tab draft tasks');
+  expect(await rawStorage(other)).toBe(winnerRaw);
+});
+
+test('entry and report drafts survive route changes, week changes and refresh without changing committed data', async ({ page }) => {
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const original = JSON.stringify({ ...journal, entries: journal.entries.map(entry => ({ ...entry, date })) });
+  await seed(page, original, '/entries?new=1');
+  await page.getByTestId('input-title').fill('Unfinished entry');
+  await page.getByTestId('input-tasks').fill('My raw notes');
+  await page.getByTestId('input-hours').fill('');
+  await page.getByTestId('input-skills').fill('Pending skill');
+  await page.getByTestId('link-nav-report').click();
+  await page.getByTestId('button-toggle-edit').click();
+  await page.getByTestId('textarea-report').fill('My edited weekly report');
+  await page.getByTestId('button-prev-week').click();
+  await page.getByTestId('button-next-week').click();
+  await expect(page.getByTestId('textarea-report')).toHaveValue('My edited weekly report');
+  await page.reload();
+  await page.getByTestId('button-toggle-edit').click();
+  await expect(page.getByTestId('textarea-report')).toHaveValue('My edited weekly report');
+  await page.getByTestId('link-nav-entries').click();
+  await page.getByRole('button', { name: 'Resume: Unfinished entry' }).click();
+  await expect(page.getByTestId('input-title')).toHaveValue('Unfinished entry');
+  await expect(page.getByTestId('input-hours')).toHaveValue('');
+  await expect(page.getByTestId('input-skills')).toHaveValue('Pending skill');
+  await page.reload();
+  await expect(page.getByTestId('input-tasks')).toHaveValue('My raw notes');
+  expect(await rawStorage(page)).toBe(original);
+  await page.getByRole('button', { name: 'Discard draft', exact: true }).click();
+  await page.getByTestId('button-confirm-action').click();
+  await page.reload();
+  await expect(page.getByTestId('input-title')).toHaveValue('');
+  await page.getByTestId('link-nav-report').click();
+  await page.getByTestId('button-toggle-edit').click();
+  await expect(page.getByTestId('textarea-report')).toHaveValue('My edited weekly report');
+  expect(await rawStorage(page)).toBe(original);
 });
 
 test('browser Back and Forward keep entry detail and new-entry panels in sync with the query string', async ({ page }) => {

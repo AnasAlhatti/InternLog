@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); });
 
 // jsdom has no Web Locks API. Serialize same-origin writers as browsers do.
 const queues = new Map<string, Promise<unknown>>();

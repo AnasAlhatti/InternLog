@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { AppData, EntryInput, Profile, WeeklySummary } from "@/lib/domain";
 import { useJournal } from "@/hooks/use-journal";
+import { DraftProvider } from "@/components/draft-context";
 
 export interface Journal {
   data: AppData;
@@ -22,7 +23,7 @@ export const JournalContext = createContext<Journal | null>(null);
 
 export function JournalProvider({ children }: { children: ReactNode }) {
   const journal = useJournal();
-  return <JournalContext.Provider value={journal}>{children}</JournalContext.Provider>;
+  return <JournalContext.Provider value={journal}><DraftProvider>{children}</DraftProvider></JournalContext.Provider>;
 }
 
 export function useJournalContext(): Journal {

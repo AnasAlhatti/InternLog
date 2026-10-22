@@ -9,6 +9,7 @@ export interface WeeklyReportViewProps {
   profile: Profile;
   text: string;
   edited: boolean;
+  hasDraft?: boolean;
   summary: string | null;
   summaryStale: boolean;
   aiPending: boolean;

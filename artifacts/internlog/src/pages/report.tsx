@@ -2,19 +2,30 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { summarizeWeek } from "@workspace/api-client-react";
 import WeeklyReportView from "@/components/weekly-report-view";
 import { useJournalContext } from "@/components/journal-context";
-import { filterEntries, generateReport, getStats, localDate, shiftDate, weekBounds, type WeeklySummary } from "@/lib/domain";
+import { filterEntries, formatDate, generateReport, getStats, localDate, shiftDate, weekBounds, type WeeklySummary } from "@/lib/domain";
 import { includeSummary, summaryInput, summarySource } from "@/lib/weekly-summary";
 import { useToast } from "@/hooks/use-toast";
+import { useDrafts } from "@/components/draft-context";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Button } from "@/components/ui/button";
 
 export default function ReportPage({ initialDate }: { initialDate?: string }) {
   const { data, saveWeeklySummary, conflict, recoveryRequired } = useJournalContext();
   const { toast } = useToast();
+  const { drafts, put, remove } = useDrafts();
+  const [reset, setReset] = useState(false);
   const [anchor, setAnchor] = useState(initialDate ?? localDate());
   const { start, end } = weekBounds(anchor);
   const weekEntries = useMemo(() => filterEntries(data.entries, { from: start, to: end }), [data.entries, start, end]);
   const generated = useMemo(() => generateReport(data.entries, anchor, data.profile), [data.entries, anchor, data.profile]);
-  const [text, setText] = useState(generated);
-  useEffect(() => setText(generated), [generated]);
+  const key = `report:${start}`;
+  const storedDraft = drafts.find(item => item.kind === "report" && item.key === key);
+  const reportDraft = storedDraft?.kind === "report" ? storedDraft : undefined;
+  const text = reportDraft?.text ?? generated;
+  const setText = (value: string) => {
+    if (value === generated) remove(key);
+    else put({ kind: "report", key, week: start, source: reportDraft?.source ?? generated, text: value });
+  };
   const edited = text !== generated;
   const thisWeek = weekBounds(localDate()).start === start;
   const source = useMemo(() => summarySource(data.entries, start), [data.entries, start]);
@@ -92,11 +103,26 @@ export default function ReportPage({ initialDate }: { initialDate?: string }) {
     toast({ title: "Report downloaded", description: a.download });
   };
 
-  return <WeeklyReportView
+  return <>
+    <div className="mb-6 space-y-3">
+      <p role="status" className="text-xs text-muted-foreground">
+        {reportDraft ? "Edited report draft kept. " : ""}
+        Edits stay in this tab across pages, weeks, and refreshes. Closing the tab removes drafts. Copy or download to keep a report permanently.
+      </p>
+      {reportDraft && reportDraft.source !== generated && <p role="alert" className="text-sm text-accent-foreground">Journal entries or profile details changed since this report was edited. Your draft is unchanged. Review it or reset to the latest entries.</p>}
+      {drafts.some(item => item.kind === "report") && (
+        <section aria-label="Report drafts" className="flex flex-wrap gap-2">
+          {drafts.map(item => item.kind === "report" && <Button key={item.key} variant="outline" size="sm" onClick={() => setAnchor(item.week)}>Resume report: {formatDate(item.week)}</Button>)}
+        </section>
+      )}
+    </div>
+    <WeeklyReportView
     start={start} end={end} thisWeek={thisWeek} entries={weekEntries} stats={getStats(weekEntries)} profile={data.profile}
-    text={text} edited={edited} summary={summary} summaryStale={summaryStale} aiPending={aiPending} aiError={aiError} storageBlocked={storageBlocked}
+    text={text} edited={edited} hasDraft={Boolean(reportDraft)} summary={summary} summaryStale={summaryStale} aiPending={aiPending} aiError={aiError} storageBlocked={storageBlocked}
     onPrevious={() => setAnchor(shiftDate(start, -7))} onNext={() => setAnchor(shiftDate(start, 7))} onThisWeek={() => setAnchor(localDate())}
-    onTextChange={setText} onReset={() => setText(generated)} onCopy={copy} onDownload={download}
+    onTextChange={setText} onReset={() => setReset(true)} onCopy={copy} onDownload={download}
     onGenerateSummary={generateSummary} onRemoveSummary={removeSummary}
-  />;
+    />
+    <ConfirmDialog open={reset} onOpenChange={setReset} title="Discard report edits?" description="This removes the edited draft for this week and regenerates the report from the latest saved entries. Other weeks and your journal are not changed." confirmLabel="Discard edits and reset" onConfirm={() => remove(key)} />
+  </>;
 }

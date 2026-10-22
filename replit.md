@@ -16,6 +16,7 @@ A browser-local internship journal with daily work entries and weekly reports.
 - `pnpm --filter @workspace/internlog typecheck` — app TypeScript check
 - InternLog uses its managed `artifacts/internlog: web` workflow.
 - No database or account is required for InternLog.
+- Entry and report drafts use tab-local session storage, separate from journal backups. They survive navigation/refresh, not closing the tab; Copy/Download keeps reports permanently.
 
 ## Stack
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Router, Switch } from "wouter";
+import { DraftProvider } from "@/components/draft-context";
 import { memoryLocation } from "wouter/memory-location";
 import type { ReactNode } from "react";
 import { JournalContext, type Journal } from "@/components/journal-context";
@@ -48,7 +49,7 @@ function wrap(ui: ReactNode, journal: Journal, path = "/") {
   const memory = memoryLocation({ path, record: true });
   const rendered = render(
     <Router hook={memory.hook}>
-      <JournalContext.Provider value={journal}>{ui}</JournalContext.Provider>
+      <JournalContext.Provider value={journal}><DraftProvider>{ui}</DraftProvider></JournalContext.Provider>
     </Router>,
   );
   return { ...rendered, memory };
@@ -90,6 +91,36 @@ describe("Dashboard", () => {
 });
 
 describe("Entries page", () => {
+  it("offers unfinished drafts after cancelling and restores edits separately for each entry", async () => {
+    const j = makeJournal(data);
+    const first = wrap(<EntriesPage />, j, "/entries?new=1");
+    await userEvent.type(screen.getByLabelText(/^title/i), "New draft");
+    await userEvent.click(screen.getByTestId("button-cancel-entry"));
+    await userEvent.click(screen.getByTestId("card-entry-a"));
+    await userEvent.click(screen.getByTestId("button-edit-entry"));
+    await userEvent.type(screen.getByLabelText(/what did you learn/i), "Edit draft");
+    first.unmount();
+    wrap(<EntriesPage />, j, "/entries");
+    await userEvent.click(screen.getByRole("button", { name: /resume: new draft/i }));
+    expect(screen.getByLabelText(/^title/i)).toHaveValue("New draft");
+    await userEvent.click(screen.getByRole("button", { name: /resume: older day/i }));
+    expect(screen.getByLabelText(/what did you learn/i)).toHaveValue("Edit draft");
+    expect(j.saveEntry).not.toHaveBeenCalled();
+  });
+
+  it("lets users review a deleted entry draft and recover it as a new entry", async () => {
+    const first = wrap(<EntriesPage />, makeJournal(data), "/entries?entry=a&edit=1");
+    await userEvent.type(screen.getByLabelText(/what did you learn/i), "Preserve these notes");
+    first.unmount();
+    const j = makeJournal({ ...data, entries: [] });
+    wrap(<EntriesPage />, j, "/entries");
+    await userEvent.click(screen.getByRole("button", { name: /resume: older day/i }));
+    expect(screen.getByRole("button", { name: /save entry/i })).toBeDisabled();
+    expect(screen.getByLabelText(/what did you learn/i)).toHaveValue("Preserve these notes");
+    await userEvent.click(screen.getByRole("button", { name: /I reviewed/i }));
+    await userEvent.click(screen.getByRole("button", { name: /save entry/i }));
+    expect(j.saveEntry).toHaveBeenCalledWith(expect.objectContaining({ learning: "Preserve these notes" }), undefined);
+  });
   it("keeps the panel in sync with same-page URL navigation", async () => {
     const { memory } = wrap(<EntriesPage />, makeJournal(data), "/entries?entry=a");
     expect(screen.getByTestId('detail-entry-a')).toBeInTheDocument();
@@ -192,6 +223,42 @@ describe("Settings page", () => {
 });
 
 describe("Report page", () => {
+  it("keeps independent week drafts through week changes, page changes and remounts", async () => {
+    const j = makeJournal({ ...data, entries: [...data.entries, entry({ id: "older", date: "2025-02-26" })] });
+    const first = wrap(<ReportPage initialDate="2025-03-04" />, j, "/report");
+    await userEvent.click(screen.getByRole("button", { name: /edit report/i }));
+    await userEvent.clear(screen.getByLabelText(/report markdown/i));
+    await userEvent.type(screen.getByLabelText(/report markdown/i), "Current week edits");
+    await userEvent.click(screen.getByRole("button", { name: /previous week/i }));
+    await userEvent.clear(screen.getByLabelText(/report markdown/i));
+    await userEvent.type(screen.getByLabelText(/report markdown/i), "Previous week edits");
+    await userEvent.click(screen.getByRole("button", { name: /next week/i }));
+    expect(screen.getByLabelText(/report markdown/i)).toHaveValue("Current week edits");
+    first.unmount();
+    wrap(<ReportPage initialDate="2025-02-26" />, j, "/report");
+    await userEvent.click(screen.getByRole("button", { name: /edit report/i }));
+    expect(screen.getByLabelText(/report markdown/i)).toHaveValue("Previous week edits");
+    await userEvent.click(screen.getByTestId("button-regenerate"));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByTestId("button-confirm-cancel"));
+    expect(screen.getByLabelText(/report markdown/i)).toHaveValue("Previous week edits");
+    await userEvent.click(screen.getByTestId("button-regenerate"));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByTestId("button-confirm-action"));
+    await userEvent.click(screen.getByRole("button", { name: /next week/i }));
+    expect(screen.getByLabelText(/report markdown/i)).toHaveValue("Current week edits");
+    expect(j.data.entries).toEqual([...data.entries, entry({ id: "older", date: "2025-02-26" })]);
+  });
+
+  it("preserves even an empty edited report when its source entries are removed", async () => {
+    const first = wrap(<ReportPage initialDate="2025-03-04" />, makeJournal(data), "/report");
+    await userEvent.click(screen.getByRole("button", { name: /edit report/i }));
+    await userEvent.clear(screen.getByLabelText(/report markdown/i));
+    first.unmount();
+    wrap(<ReportPage initialDate="2025-03-04" />, makeJournal({ ...data, entries: [] }), "/report");
+    await userEvent.click(screen.getByRole("button", { name: /edit report/i }));
+    expect(screen.getByLabelText(/report markdown/i)).toHaveValue("");
+    expect(screen.queryByTestId("empty-report")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/changed since this report/i);
+  });
   it("shows an empty-week state when no entries in selected week", () => {
     wrap(<ReportPage />, makeJournal({ version: 1, profile, entries: [] }), "/report");
     expect(screen.getByText(/nothing logged this week/i)).toBeInTheDocument();
@@ -205,6 +272,7 @@ describe("Report page", () => {
     await userEvent.type(ta, " extra");
     expect(ta.value).not.toBe(original);
     await userEvent.click(screen.getByTestId("button-regenerate"));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByTestId("button-confirm-action"));
     expect(ta.value).toBe(original);
   });
 });

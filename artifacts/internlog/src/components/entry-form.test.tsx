@@ -1,8 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as renderUI, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { DraftProvider } from "./draft-context";
 import userEvent from "@testing-library/user-event";
 import { EntryForm } from "./entry-form";
 import type { Entry, EntryInput } from "@/lib/domain";
+
+const render = (ui: ReactNode) => renderUI(<DraftProvider>{ui}</DraftProvider>);
 
 const existing: Entry = {
   id: "e1",

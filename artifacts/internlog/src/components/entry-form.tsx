@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { localDate, validateEntry, type Entry, type EntryInput } from "@/lib/domain";
 import { cn } from "@/lib/utils";
+import { useDrafts, type EntryFields } from "@/components/draft-context";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Props {
   initial?: Entry;
+  draftKey?: string;
   onSubmit(input: EntryInput): boolean | Promise<boolean>;
   onCancel(): void;
 }
@@ -29,17 +32,40 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
   );
 }
 
-export function EntryForm({ initial, onSubmit, onCancel }: Props) {
-  const [date, setDate] = useState(initial?.date ?? localDate());
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [tasks, setTasks] = useState(initial?.tasks ?? "");
-  const [learning, setLearning] = useState(initial?.learning ?? "");
-  const [blockers, setBlockers] = useState(initial?.blockers ?? "");
-  const [blockerStatus, setBlockerStatus] = useState<"open" | "resolved">(initial?.blockerStatus ?? "open");
-  const [nextSteps, setNextSteps] = useState(initial?.nextSteps ?? "");
-  const [hours, setHours] = useState(initial ? String(initial.hours) : "0");
-  const [skills, setSkills] = useState<string[]>(initial?.skills ?? []);
-  const [skillDraft, setSkillDraft] = useState("");
+export function EntryForm({ initial, draftKey, onSubmit, onCancel }: Props) {
+  const { drafts, put, remove } = useDrafts();
+  const key = draftKey ?? (initial ? `entry:edit:${initial.id}` : "entry:new");
+  const saved = drafts.find(item => item.key === key && item.kind === "entry");
+  const draft = saved?.kind === "entry" ? saved : undefined;
+  const source = JSON.stringify(initial ?? null);
+  const defaults: EntryFields = {
+    date: initial?.date ?? localDate(), title: initial?.title ?? "", tasks: initial?.tasks ?? "",
+    learning: initial?.learning ?? "", blockers: initial?.blockers ?? "", blockerStatus: initial?.blockerStatus ?? "open",
+    nextSteps: initial?.nextSteps ?? "", hours: initial ? String(initial.hours) : "0", skills: initial?.skills ?? [], skillDraft: "",
+  };
+  const [fields, setFields] = useState(draft?.fields ?? defaults);
+  const [recovered] = useState(Boolean(draft));
+  const [discard, setDiscard] = useState(false);
+  const stale = Boolean(draft && draft.source !== source);
+  const { date, title, tasks, learning, blockers, blockerStatus, nextSteps, hours, skills, skillDraft } = fields;
+  function updateFields(next: EntryFields) {
+    setFields(next);
+    if (JSON.stringify(next) === JSON.stringify(defaults)) remove(key);
+    else put({ kind: "entry", key, entryId: initial?.id ?? draft?.entryId, source: draft?.source ?? source, fields: next });
+  }
+  function change<K extends keyof EntryFields>(field: K, value: EntryFields[K] | ((old: EntryFields[K]) => EntryFields[K])) {
+    updateFields({ ...fields, [field]: typeof value === "function" ? value(fields[field]) : value });
+  }
+  const setDate = (v: string) => change("date", v);
+  const setTitle = (v: string) => change("title", v);
+  const setTasks = (v: string) => change("tasks", v);
+  const setLearning = (v: string) => change("learning", v);
+  const setBlockers = (v: string) => change("blockers", v);
+  const setBlockerStatus = (v: "open" | "resolved") => change("blockerStatus", v);
+  const setNextSteps = (v: string) => change("nextSteps", v);
+  const setHours = (v: string) => change("hours", v);
+  const setSkills = (v: string[] | ((old: string[]) => string[])) => change("skills", v);
+  const setSkillDraft = (v: string) => change("skillDraft", v);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -56,16 +82,14 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
     if (value.includes(",")) {
       const parts = value.split(",");
       const rest = parts.pop() ?? "";
-      setSkills((cur) => addSkills(cur, parts));
-      setSkillDraft(rest.trimStart());
+      updateFields({ ...fields, skills: addSkills(skills, parts), skillDraft: rest.trimStart() });
     } else setSkillDraft(value);
   };
 
   const onSkillKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      setSkills((cur) => addSkills(cur, [skillDraft]));
-      setSkillDraft("");
+      updateFields({ ...fields, skills: addSkills(skills, [skillDraft]), skillDraft: "" });
     } else if (e.key === "Backspace" && !skillDraft && skills.length) {
       setSkills((cur) => cur.slice(0, -1));
     }
@@ -73,7 +97,7 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (saving) return;
+    if (saving || stale) return;
     const finalSkills = addSkills(skills, [skillDraft]);
     const h = hours.trim() === "" ? NaN : Number(hours);
     const input: EntryInput = {
@@ -94,10 +118,8 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
     if ((!Number.isFinite(h) || h < 0 || h > 24) && !errs.hours) errs.hours = "Hours must be a number from 0 to 24.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    setSkills(finalSkills);
-    setSkillDraft("");
     setSaving(true);
-    try { await onSubmit(input); } finally { setSaving(false); }
+    try { if (await onSubmit(input)) remove(key); } finally { setSaving(false); }
   };
 
   const inv = (k: string) => ({
@@ -107,6 +129,18 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
 
   return (
     <form onSubmit={submit} noValidate className="space-y-5" data-testid="form-entry">
+      <p role="status" className="text-xs text-muted-foreground">
+        {recovered && draft ? "Draft recovered. " : ""}
+        Drafts stay in this tab when you switch pages or refresh. Closing this tab removes them. Cancel keeps your draft; only Save entry updates your journal.
+      </p>
+      {stale && (
+        <div role="alert" className="rounded-xl border border-destructive p-3 text-sm space-y-2">
+          <p>The saved entry changed or was removed since this draft began. Review the latest saved values before using this draft. It will not be saved automatically.</p>
+          <details><summary>Latest saved entry</summary><pre className="whitespace-pre-wrap break-words">{initial ? JSON.stringify(initial, null, 2) : "This entry no longer exists. Saving will create a new entry."}</pre></details>
+          <Button type="button" variant="outline" onClick={() => draft && put({ ...draft, source })}>I reviewed the latest entry — use this draft</Button>
+        </div>
+      )}
+      <fieldset disabled={saving} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
         <Field id="f-date" label="Date" error={errors.date}>
           <Input id="f-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="input-date" {...inv("date")} />
@@ -176,9 +210,12 @@ export function EntryForm({ initial, onSubmit, onCancel }: Props) {
         </div>
       </div>
       <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+        {draft && <Button type="button" variant="outline" disabled={saving} onClick={() => setDiscard(true)}>Discard draft</Button>}
         <Button type="button" variant="ghost" disabled={saving} onClick={onCancel} data-testid="button-cancel-entry">Cancel</Button>
-        <Button type="submit" disabled={saving} data-testid="button-save-entry">{saving ? 'Saving…' : 'Save entry'}</Button>
+        <Button type="submit" disabled={saving || stale} data-testid="button-save-entry">{saving ? 'Saving…' : 'Save entry'}</Button>
       </div>
+      </fieldset>
+      <ConfirmDialog open={discard} onOpenChange={setDiscard} title="Discard this draft?" description="Your unfinished edits will be removed from this tab. Saved journal entries will not change." confirmLabel="Discard draft" onConfirm={() => { remove(key); setFields(defaults); setErrors({}); }} />
     </form>
   );
 }

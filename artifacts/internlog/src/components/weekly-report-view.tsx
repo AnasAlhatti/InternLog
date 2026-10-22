@@ -33,8 +33,8 @@ const proseClass =
 export default function WeeklyReportView(p: WeeklyReportViewProps) {
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const empty = p.entries.length === 0;
-  const canGenerate = !p.aiPending && !p.storageBlocked && !empty;
+  const empty = p.entries.length === 0 && !p.hasDraft;
+  const canGenerate = !p.aiPending && !p.storageBlocked && p.entries.length > 0;
 
   return (
     <div className="space-y-6">
@@ -135,7 +135,7 @@ export default function WeeklyReportView(p: WeeklyReportViewProps) {
                   <Button variant="ghost" size="sm" onClick={() => setEditing((v) => !v)} aria-pressed={editing} data-testid="button-toggle-edit">
                     {editing ? <><Eye className="mr-1.5 h-4 w-4" aria-hidden />Preview</> : <><PencilLine className="mr-1.5 h-4 w-4" aria-hidden />Edit report</>}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={p.onReset} disabled={!p.edited} data-testid="button-regenerate"><RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />Reset to entries</Button>
+                  <Button variant="ghost" size="sm" onClick={p.onReset} disabled={!p.edited && !p.hasDraft} data-testid="button-regenerate"><RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />Reset to entries</Button>
                   <Button variant="outline" size="sm" onClick={p.onCopy} data-testid="button-copy-report"><Copy className="mr-1.5 h-4 w-4" aria-hidden />Copy</Button>
                   <Button size="sm" onClick={p.onDownload} data-testid="button-download-report"><Download className="mr-1.5 h-4 w-4" aria-hidden />Download .md</Button>
                 </div>

@@ -15,7 +15,7 @@ export function useJournal() {
   const flagConflict = () => {
     conflictDetected.current = true;
     setConflict(true);
-    setError('Another tab changed this journal. Your unsaved draft is still here. Copy it and reload this page before saving or replacing data.');
+    setError('Another tab changed this journal. Your visible edits have not been replaced. Entry and report drafts recover in this tab after reload unless a draft-storage warning is shown. Copy any unsaved notes if storage is unavailable, then reload before saving or replacing data.');
   };
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {

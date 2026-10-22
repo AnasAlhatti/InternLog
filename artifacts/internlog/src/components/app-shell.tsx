@@ -72,9 +72,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 min-w-0">
         {conflict && (
           <div role="status" className="mx-4 mt-4 rounded-xl border border-destructive/30 bg-card p-4 text-sm md:mx-10" data-testid="status-storage-conflict">
-            <p>Another tab changed this journal. Copy any unsaved notes before reloading. Saves and replacements are blocked to protect the latest data.</p>
+            <p>Another tab changed this journal. Entry and report drafts are kept in this tab across reloads unless a draft-storage warning is shown. Copy any unsaved notes if storage is unavailable. Saves and replacements are blocked to protect the latest data.</p>
             <button className="mt-2 rounded-md border border-border px-3 py-2 font-semibold" onClick={() => {
-              if (window.confirm("Reload the latest journal? Any unsaved notes on this page will be discarded. Copy them first.")) window.location.reload();
+              if (window.confirm("Reload the latest journal? Entry and report drafts will recover in this tab unless draft storage is unavailable. Copy any other unsaved notes or profile changes first.")) window.location.reload();
             }}>Reload latest journal</button>
           </div>
         )}

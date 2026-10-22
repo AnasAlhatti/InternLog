@@ -1,2 +1,3 @@
 - [GitHub access after handoff](github-access.md) — authorization metadata can look healthy without usable project access; local commits are not a remote backup.
 - [Unpatched glob dependencies](dependency-security.md) — avoid restoring the braces-based glob chain; its denial-of-service advisory has no patched release.
+- [Draft safety](draft-safety.md) — tab ownership prevents unfinished notes from overwriting each other; recovery must not bypass changed-entry review.
