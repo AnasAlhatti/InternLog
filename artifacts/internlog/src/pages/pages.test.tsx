@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Router } from "wouter";
+import { Route, Router, Switch } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { ReactNode } from "react";
 import { JournalContext, type Journal } from "@/components/journal-context";
@@ -44,12 +44,13 @@ function makeJournal(data: AppData, over: Partial<Journal> = {}): Journal {
 }
 
 function wrap(ui: ReactNode, journal: Journal, path = "/") {
-  const { hook } = memoryLocation({ path });
-  return render(
-    <Router hook={hook}>
+  const memory = memoryLocation({ path, record: true });
+  const rendered = render(
+    <Router hook={memory.hook}>
       <JournalContext.Provider value={journal}>{ui}</JournalContext.Provider>
     </Router>,
   );
+  return { ...rendered, memory };
 }
 
 const profile = { name: "Priya", role: "Design intern", organization: "Harbor Lab" };
@@ -66,6 +67,14 @@ beforeEach(() => {
 });
 
 describe("Dashboard", () => {
+  it("round-trips imported IDs containing query and fragment characters", async () => {
+    const id = "imported&new=1#part /?+%";
+    const j = makeJournal({ ...data, entries: [entry({ id, title: 'Imported entry' })] });
+    const { memory } = wrap(<Switch><Route path="/" component={DashboardPage} /><Route path="/entries" component={EntriesPage} /></Switch>, j);
+    await userEvent.click(screen.getByTestId(`card-entry-${id}`));
+    expect(memory.history?.at(-1)).toBe(`/entries?entry=${encodeURIComponent(id)}`);
+    expect(screen.getByTestId(`detail-entry-${id}`)).toBeInTheDocument();
+  });
   it("shows helpful empty state and a load-samples action without auto loading", async () => {
     const j = makeJournal({ version: 1, profile, entries: [] });
     wrap(<DashboardPage />, j);
@@ -80,6 +89,20 @@ describe("Dashboard", () => {
 });
 
 describe("Entries page", () => {
+  it("keeps the panel in sync with same-page URL navigation", async () => {
+    const { memory } = wrap(<EntriesPage />, makeJournal(data), "/entries?entry=a");
+    expect(screen.getByTestId('detail-entry-a')).toBeInTheDocument();
+    act(() => { memory.navigate('/entries?new=1'); });
+    expect(screen.getByRole('heading', { name: 'New entry' })).toBeInTheDocument();
+    act(() => { memory.navigate('/entries?entry=b'); });
+    expect(screen.getByTestId('detail-entry-b')).toBeInTheDocument();
+    act(() => { memory.navigate('/entries?entry=a'); });
+    expect(screen.getByTestId('detail-entry-a')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('button-edit-entry'));
+    expect(memory.history?.at(-1)).toBe('/entries?entry=a&edit=1');
+    await userEvent.click(screen.getByTestId('button-cancel-entry'));
+    expect(memory.history?.at(-1)).toBe('/entries?entry=a');
+  });
   it("lists newest first and filters by search", async () => {
     wrap(<EntriesPage />, makeJournal(data), "/entries");
     const titles = screen.getAllByTestId(/^text-entry-title-/).map((n) => n.textContent);

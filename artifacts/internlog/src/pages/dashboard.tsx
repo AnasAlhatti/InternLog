@@ -82,7 +82,7 @@ export default function DashboardPage() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {recent.map((e) => (
-              <EntryCard key={e.id} entry={e} onSelect={() => navigate(`/entries?entry=${e.id}`)} />
+              <EntryCard key={e.id} entry={e} onSelect={() => navigate(`/entries?entry=${encodeURIComponent(e.id)}`)} />
             ))}
           </div>
         )}

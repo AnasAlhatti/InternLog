@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearch } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Plus, Search, Pencil, Trash2, ArrowLeft, Clock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,10 +60,17 @@ function Detail({ entry, onEdit, onDelete, onBack }: { entry: Entry; onEdit(): v
 export default function EntriesPage() {
   const { data, saveEntry, deleteEntry } = useJournalContext();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const params = new URLSearchParams(useSearch());
-  const [mode, setMode] = useState<Mode>(() =>
-    params.get("new") ? { kind: "new" } : params.get("entry") ? { kind: "view", id: params.get("entry")! } : { kind: "none" },
-  );
+  const selectedId = params.get("entry");
+  const mode: Mode = params.get("new")
+    ? { kind: "new" }
+    : selectedId ? { kind: params.get("edit") === "1" ? "edit" : "view", id: selectedId } : { kind: "none" };
+  const setMode = (next: Mode) => {
+    const query = next.kind === "new" ? "?new=1"
+      : next.kind === "view" || next.kind === "edit" ? `?entry=${encodeURIComponent(next.id)}${next.kind === "edit" ? "&edit=1" : ""}` : "";
+    navigate(`/entries${query}`);
+  };
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
