@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
-import glob from "fast-glob";
+import { glob } from "tinyglobby";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Plugin } from "vite";
@@ -42,6 +42,7 @@ export function mockupPreviewPlugin(): Plugin {
   async function discoverComponents(): Promise<Array<DiscoveredComponent>> {
     const files = await glob(`${MOCKUPS_DIR}/**/*.tsx`, {
       cwd: root,
+      expandDirectories: false,
       ignore: ["**/_*/**", "**/_*.tsx"],
     });
 
