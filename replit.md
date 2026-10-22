@@ -1,6 +1,6 @@
-# [Project name]
+# InternLog
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A browser-local internship journal with daily work entries and weekly reports.
 
 ## Run & Operate
 
@@ -9,7 +9,10 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/internlog test` — Vitest unit/component tests
+- `pnpm --filter @workspace/internlog typecheck` — app TypeScript check
+- InternLog uses its managed `artifacts/internlog: web` workflow.
+- No database or account is required for InternLog.
 
 ## Stack
 
@@ -26,7 +29,9 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- InternLog is frontend-only and browser-local by explicit user request.
+- Dates represent local calendar days, not UTC timestamps.
+- Imported data must validate completely before replacement; failed writes must not update visible state.
 
 ## Product
 
@@ -34,7 +39,10 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Use a TDD workflow when executing: red, green, refactor.
+- Create a GitHub repository and commit gradually at stable milestones.
+- Keep v1 free of authentication, external app integrations, AI, and paid services.
+- GitHub is for source control only, not an in-app feature.
 
 ## Gotchas
 
